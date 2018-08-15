@@ -162,6 +162,7 @@ export default {
           { pattern: /^1\d{10}$/, message: '请输入正确的手机格式', trigger: 'blur' }
         ]
       },
+      assignForm:[],
       assignDialogVisible: false
     }
   },
