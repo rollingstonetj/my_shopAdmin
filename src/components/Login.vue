@@ -6,7 +6,7 @@
         <el-input v-model="form.username"></el-input>
       </el-form-item>
       <el-form-item label="密码" prop="password">
-        <el-input type="password" v-model="form.password"></el-input>
+        <el-input type="password" v-model="form.password" @keyup.enter.native="login"></el-input>
       </el-form-item>
       <el-form-item>
         <el-button type="primary" @click="login">登录</el-button>
@@ -16,7 +16,6 @@
   </div>
 </template>
 <script>
-import axios from 'axios'
 export default {
   data () {
     return {
@@ -39,27 +38,26 @@ export default {
   methods: {
     login () {
     //  表单校验
-      this.$refs.form.validate((valid) => {
+      this.$refs.form.validate(async (valid) => {
         if (valid) {
-          axios({
+          const res = await this.axios({
             method: 'post',
-            url: 'http://localhost:8888/api/private/v1/login',
+            url: 'login',
             data: this.form
-          }).then(res => {
-            if (res.data.meta.status === 200) {
-              this.$message({
-                message: '恭喜你，登录成功',
-                type: 'success'
-              })
-              // 跳转到主页   登录成功,记录token
-              let token = res.data.data.token
-              localStorage.setItem('token', token)
-              this.$router.push('home')
-            } else {
-              // 消息提示，提示用户名或者密码错误
-              this.$message.error('用户名或者密码错误')
-            }
           })
+          if (res.data.meta.status === 200) {
+            this.$message({
+              message: '恭喜你，登录成功',
+              type: 'success'
+            })
+            // 跳转到主页   登录成功,记录token
+            let token = res.data.data.token
+            localStorage.setItem('token', token)
+            this.$router.push('home')
+          } else {
+            // 消息提示，提示用户名或者密码错误
+            this.$message.error('用户名或者密码错误')
+          }
         } else {
           return false
         }

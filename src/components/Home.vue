@@ -21,8 +21,6 @@
       router
       default-active="2"
       class="el-menu-vertical-demo"
-      @open="handleOpen"
-      @close="handleClose"
       background-color="#545c64"
       text-color="#fff"
       active-text-color="#ffd04b">
@@ -41,11 +39,11 @@
             <i class="el-icon-location"></i>
             <span>权限管理</span>
           </template>
-          <el-menu-item index="">
+          <el-menu-item index="roles">
             <i class="el-icon-menu"></i>
             <span slot="title">角色列表</span>
           </el-menu-item>
-           <el-menu-item index="">
+           <el-menu-item index="rights">
             <i class="el-icon-menu"></i>
             <span slot="title">权限列表</span>
           </el-menu-item>
@@ -62,13 +60,14 @@
 <script>
 export default {
   methods: {
-    logout () {
+    async logout () {
       // 点击退出，出现消息提示
-      this.$confirm('您确定要退出系统吗, 是否继续?', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(() => {
+      try {
+        await this.$confirm('您确定要退出系统吗, 是否继续?', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
         this.$message({
           type: 'success',
           message: '退出成功!'
@@ -76,18 +75,12 @@ export default {
         localStorage.removeItem('token')
         // 跳转到登录页
         this.$router.push('login')
-      }).catch(() => {
+      } catch (e) {
         this.$message({
           type: 'info',
           message: '退出取消了'
         })
-      })
-    },
-    handleOpen (key, keyPath) {
-      console.log(key, keyPath)
-    },
-    handleClose (key, keyPath) {
-      console.log(key, keyPath)
+      }
     }
   }
 }
