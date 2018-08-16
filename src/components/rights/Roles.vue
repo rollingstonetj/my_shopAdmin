@@ -263,7 +263,7 @@ export default {
       let {meta, data} = res.data
       // console.log(res.data)
       if (meta.status === 200) {
-        this.rightList = data  //获取所有权限并显示
+        this.rightList = data // 获取所有权限并显示
         // 获取到当前角色下的所有三级权限，并渲染到页面中
         const checkedKeys = []
         role.children.forEach(level1 => {

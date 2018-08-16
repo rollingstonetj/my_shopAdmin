@@ -56,7 +56,7 @@ export default {
             this.$router.push('home')
           } else {
             // 消息提示，提示用户名或者密码错误
-            this.$message.error('用户名或者密码错误')
+            this.$message.error(res.data.meta.msg)
           }
         } else {
           return false

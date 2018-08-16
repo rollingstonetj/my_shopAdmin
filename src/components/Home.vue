@@ -19,33 +19,19 @@
       <el-menu
       unique-opened
       router
-      default-active="2"
+      :default-active="$route.path.slice(1)"
       class="el-menu-vertical-demo"
       background-color="#545c64"
       text-color="#fff"
       active-text-color="#ffd04b">
-        <el-submenu index="1">
+        <el-submenu :index="l1.path" v-for="l1 in menuList" :key="l1.id">
           <template slot="title">
             <i class="el-icon-location"></i>
-            <span>用户管理</span>
+            <span>{{l1.authName}}</span>
           </template>
-          <el-menu-item index="users">
+          <el-menu-item :index="l2.path" v-for="l2 in l1.children" :key="l2.id">
             <i class="el-icon-menu"></i>
-            <span slot="title">用户列表</span>
-          </el-menu-item>
-        </el-submenu>
-        <el-submenu index="">
-          <template slot="title">
-            <i class="el-icon-location"></i>
-            <span>权限管理</span>
-          </template>
-          <el-menu-item index="roles">
-            <i class="el-icon-menu"></i>
-            <span slot="title">角色列表</span>
-          </el-menu-item>
-           <el-menu-item index="rights">
-            <i class="el-icon-menu"></i>
-            <span slot="title">权限列表</span>
+            <span slot="title">{{l2.authName}}</span>
           </el-menu-item>
         </el-submenu>
       </el-menu>
@@ -59,6 +45,11 @@
 </template>
 <script>
 export default {
+  data () {
+    return {
+      menuList: []
+    }
+  },
   methods: {
     async logout () {
       // 点击退出，出现消息提示
@@ -81,7 +72,19 @@ export default {
           message: '退出取消了'
         })
       }
+    },
+    async getMenuList () {
+      // 发送Ajax，获取菜单列表数据
+      const res = await this.axios.get('menus')
+      let {meta, data} = res.data
+      if (meta.status === 200) {
+        this.menuList = data
+      }
     }
+  },
+  // 获取左侧菜单的数据
+  created () {
+    this.getMenuList()
   }
 }
 </script>
