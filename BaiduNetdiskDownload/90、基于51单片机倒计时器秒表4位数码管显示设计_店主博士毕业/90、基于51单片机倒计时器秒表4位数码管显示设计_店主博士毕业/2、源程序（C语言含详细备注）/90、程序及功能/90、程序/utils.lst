@@ -1,0 +1,76 @@
+C51 COMPILER V9.01   UTILS                                                                 05/07/2018 20:54:23 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE UTILS
+OBJECT MODULE PLACED IN .\utils.obj
+COMPILER INVOKED BY: E:\BaiduNetdiskDownload\keil\C51\BIN\C51.EXE C:\Users\94963\Desktop\ProgrammableLED-master\software
+                    -\src\utils.c BROWSE DEBUG OBJECTEXTEND PRINT(.\utils.lst) OBJECT(.\utils.obj)
+
+line level    source
+
+   1          #include "stm32f10x.h"
+*** WARNING C318 IN LINE 1 OF C:\Users\94963\Desktop\ProgrammableLED-master\software\src\utils.c: can't open file 'stm32
+             -f10x.h'
+   2          #include "utils.h"
+*** ERROR C129 IN LINE 18 OF C:\USERS\94963\DESKTOP\PROGRAMMABLELED-MASTER\SOFTWARE\SRC\UTILS.H: missing ';' before 'g_j
+             -iffies'
+   3          
+   4          vu32 g_jiffies = 0;
+   5          
+   6          void HW_CommonInit(void)
+   7          {
+   8              GPIO_InitTypeDef GPIO_InitStructure;
+   9              
+  10              /* set 2 bit preemptible */  
+  11              NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
+  12              
+  13                  RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
+  14                  RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE); 
+  15          
+  16                  /* We didn't use oscillator of any kind, so remap PD0,1 */
+  17              GPIO_PinRemapConfig(GPIO_Remap_PD01, ENABLE);
+  18          
+  19              /* set PC13,14,15 to IPD */
+  20                  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13|GPIO_Pin_14|GPIO_Pin_15;
+  21                  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+  22                  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
+  23                  GPIO_Init(GPIOC, &GPIO_InitStructure);  
+  24          
+  25              /* set PD0,1 to IPD */
+  26                  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0|GPIO_Pin_1;
+  27                  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+  28                  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
+  29                  GPIO_Init(GPIOD, &GPIO_InitStructure);      
+  30          
+  31                  return;
+  32          }
+  33          
+  34          void HW_InitSysTick(void)
+  35          {
+  36              /* Setup SysTick Timer for 0.5 msec interrupts  */
+  37              if (SysTick_Config(8000)) 
+  38              { 
+  39                  /* Capture error */ 
+  40                  while (1);
+  41              }  
+  42              /* Configure the SysTick handler priority */
+  43              NVIC_SetPriority(SysTick_IRQn, 0x00);
+  44          
+  45              return;
+  46          }
+  47          
+  48          void delay_ms(int n)
+  49          {
+  50                  n += g_jiffies;
+C51 COMPILER V9.01   UTILS                                                                 05/07/2018 20:54:23 PAGE 2   
+
+  51              
+  52              while(time_after(n, g_jiffies)){
+  53              }
+  54              
+  55              return;
+  56          }
+  57          
+  58          
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  1 ERROR(S)

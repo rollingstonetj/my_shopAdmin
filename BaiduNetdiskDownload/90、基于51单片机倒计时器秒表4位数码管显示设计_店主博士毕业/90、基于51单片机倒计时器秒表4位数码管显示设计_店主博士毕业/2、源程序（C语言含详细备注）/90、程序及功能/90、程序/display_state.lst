@@ -1,0 +1,91 @@
+C51 COMPILER V9.01   DISPLAY_STATE                                                         05/07/2018 20:54:22 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE DISPLAY_STATE
+OBJECT MODULE PLACED IN .\display_state.obj
+COMPILER INVOKED BY: E:\BaiduNetdiskDownload\keil\C51\BIN\C51.EXE C:\Users\94963\Desktop\ProgrammableLED-master\software
+                    -\src\display_state.c BROWSE DEBUG OBJECTEXTEND PRINT(.\display_state.lst) OBJECT(.\display_state.obj)
+
+line level    source
+
+   1          #include "stm32f10x.h"
+*** WARNING C318 IN LINE 1 OF C:\Users\94963\Desktop\ProgrammableLED-master\software\src\display_state.c: can't open fil
+             -e 'stm32f10x.h'
+   2          #include "utils.h"
+*** ERROR C129 IN LINE 18 OF C:\USERS\94963\DESKTOP\PROGRAMMABLELED-MASTER\SOFTWARE\SRC\UTILS.H: missing ';' before 'g_j
+             -iffies'
+   3          #include "display_state.h"
+   4          #include "app_intf.h"
+   5          #include "break_light.h"
+   6          #include "gradienter.h"
+   7          #include "color_light.h"
+   8          
+   9          static vs32 g_DisState;
+  10          
+  11          static void _dummy(void) {};
+  12          static struct APP_INTF g_dummyApp = {
+  13                  _dummy, _dummy
+  14          };
+  15          static struct APP_INTF* g_curApp = &g_dummyApp;
+  16          
+  17          void STATE_SetState(enum DISPLAY_STATE state)
+  18          {
+  19              /* stop old app */
+  20              g_curApp->Stop();            
+  21          
+  22              /* set new state*/
+  23              switch(state){
+  24                  case STATE_BREAK_LIGHT:
+  25                  {
+  26                      g_curApp = &g_appBreakLight;
+  27                      break;
+  28                  }
+  29                  case STATE_GRADIENTER:
+  30                  {
+  31                      g_curApp = &g_appGradienter;
+  32                      break;
+  33                  } 
+  34                          case STATE_COLORLIGHT:
+  35                          {
+  36                                  g_curApp = &g_appColorLight;
+  37                                  break;
+  38                          }
+  39                          default:
+  40                          {
+  41                                  g_curApp = &g_dummyApp;
+  42                                  break;
+  43                          }      
+  44              };
+  45          
+  46                  /* start new app */
+  47                  g_curApp->Start();
+  48          
+  49                  return;
+  50          }
+C51 COMPILER V9.01   DISPLAY_STATE                                                         05/07/2018 20:54:22 PAGE 2   
+
+  51          
+  52          void STATE_NextState(void)
+  53          {
+  54              g_DisState++;
+  55              
+  56                  if (STATE_MAX == g_DisState){
+  57                          g_DisState = STATE_BREAK_LIGHT;
+  58                  }
+  59          
+  60                  STATE_SetState((enum DISPLAY_STATE)g_DisState);
+  61          
+  62                  return;
+  63          }
+  64          
+  65          void STATE_Init(void)
+  66          {
+  67                  g_DisState = STATE_BREAK_LIGHT; 
+  68                  g_curApp = &g_appBreakLight;  
+  69              g_appBreakLight.Start();
+  70          
+  71                  return;
+  72          }
+  73          
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  1 ERROR(S)

@@ -1,0 +1,280 @@
+C51 COMPILER V9.01   COLOR_LIGHT                                                           05/07/2018 20:54:21 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE COLOR_LIGHT
+OBJECT MODULE PLACED IN .\color_light.obj
+COMPILER INVOKED BY: E:\BaiduNetdiskDownload\keil\C51\BIN\C51.EXE C:\Users\94963\Desktop\ProgrammableLED-master\software
+                    -\src\color_light.c BROWSE DEBUG OBJECTEXTEND PRINT(.\color_light.lst) OBJECT(.\color_light.obj)
+
+line level    source
+
+   1          #include <stdlib.h>
+   2          #include "stm32f10x.h"
+*** WARNING C318 IN LINE 2 OF C:\Users\94963\Desktop\ProgrammableLED-master\software\src\color_light.c: can't open file 
+             -'stm32f10x.h'
+   3          #include "utils.h"
+*** WARNING C317 IN LINE 11 OF C:\USERS\94963\DESKTOP\PROGRAMMABLELED-MASTER\SOFTWARE\SRC\UTILS.H: attempt to redefine m
+             -acro 'NULL'
+*** ERROR C129 IN LINE 18 OF C:\USERS\94963\DESKTOP\PROGRAMMABLELED-MASTER\SOFTWARE\SRC\UTILS.H: missing ';' before 'g_j
+             -iffies'
+   4          #include "app_intf.h"
+   5          #include "color_light.h"
+   6          #include "xl345.h"
+   7          #include "power.h"
+   8          #include "led.h"
+   9          #include "acc_sensor.h"
+  10          
+  11          #define COLOR_FIFO_LENGTH    8
+  12          #define COLOR_TIMER          TIM4
+  13          #define COLOR_TIM_RCC        RCC_APB1Periph_TIM4
+  14          #define COLOR_TIM_IRQ        TIM4_IRQn
+  15          #define COLOR_TIM_ROUTINE    TIM4_IRQHandler
+  16          #define COLOR_TIMER_DELAY    50
+  17          
+  18          static void _COLOR_Start(void);
+  19          static void _COLOR_Stop(void);
+  20          struct APP_INTF g_appColorLight =
+  21          {
+  22                  _COLOR_Start,
+  23              _COLOR_Stop
+  24          };
+  25          /*
+  26          static u32 g_pattern[] = {
+  27                  0x00000000, 0x00000001, 0x00000002, 0x00000003, 0x00000004, 0x00000005, 0x00000006, 0x00000007,
+  28                  0x00000008, 0x00000009, 0x0000000A, 0x0000000B, 0x0000000C, 0x0000000D, 0x0000000E, 0x0000000F,
+  29                  0x0000000F, 0x0000001E, 0x0000002D, 0x0000003C, 0x0000004B, 0x0000005A, 0x00000069, 0x00000078,
+  30                  0x00000087, 0x00000096, 0x000000A5, 0x000000B4, 0x000000C3, 0x000000D2, 0x000000E1, 0x000000F0,
+  31                  0x000000F0, 0x000001E0, 0x000002D0, 0x000003C0, 0x000004B0, 0x000005A0, 0x00000690, 0x00000780,
+  32                  0x00000870, 0x00000960, 0x00000A50, 0x00000B40, 0x00000C30, 0x00000D20, 0x00000E10, 0x00000F00,
+  33                  0x00000F00, 0x00001E00, 0x00002D00, 0x00003C00, 0x00004B00, 0x00005A00, 0x00006900, 0x00007800,
+  34                  0x00008700, 0x00009600, 0x0000A500, 0x0000B400, 0x0000C300, 0x0000D200, 0x0000E100, 0x0000F000,
+  35                  0x0000F000, 0x0001E000, 0x0002D000, 0x0003C000, 0x0004B000, 0x0005A000, 0x00069000, 0x00078000,
+  36                  0x00087000, 0x00096000, 0x000A5000, 0x000B4000, 0x000C3000, 0x000D2000, 0x000E1000, 0x000F0000,
+  37                  0x000F0000, 0x000E0000, 0x000D0000, 0x000C0000, 0x000B0000, 0x000A0000, 0x00090000, 0x00080000,
+  38                  0x00070000, 0x00060000, 0x00050000, 0x00040000, 0x00030000, 0x00020000, 0x00010000, 0x00000000 
+  39          };*/
+  40          static u32 g_pattern[] = {
+  41                  0xF0000000, 0xE0000001, 0xD0000002, 0xC0000003, 0xB0000004, 0xA0000005, 0x90000006, 0x80000007,
+  42                  0x70000008, 0x60000009, 0x5000000A, 0x4000000B, 0x3000000C, 0x2000000D, 0x1000000E, 0x0000000F,
+  43                  0x0000000F, 0x0000001E, 0x0000002D, 0x0000003C, 0x0000004B, 0x0000005A, 0x00000069, 0x00000078,
+  44                  0x00000087, 0x00000096, 0x000000A5, 0x000000B4, 0x000000C3, 0x000000D2, 0x000000E1, 0x000000F0,
+  45                  0x000000F0, 0x000001E0, 0x000002D0, 0x000003C0, 0x000004B0, 0x000005A0, 0x00000690, 0x00000780,
+  46                  0x00000870, 0x00000960, 0x00000A50, 0x00000B40, 0x00000C30, 0x00000D20, 0x00000E10, 0x00000F00,
+  47                  0x00000F00, 0x00001E00, 0x00002D00, 0x00003C00, 0x00004B00, 0x00005A00, 0x00006900, 0x00007800,
+  48                  0x00008700, 0x00009600, 0x0000A500, 0x0000B400, 0x0000C300, 0x0000D200, 0x0000E100, 0x0000F000,
+C51 COMPILER V9.01   COLOR_LIGHT                                                           05/07/2018 20:54:21 PAGE 2   
+
+  49                  0x0000F000, 0x0001E000, 0x0002D000, 0x0003C000, 0x0004B000, 0x0005A000, 0x00069000, 0x00078000,
+  50                  0x00087000, 0x00096000, 0x000A5000, 0x000B4000, 0x000C3000, 0x000D2000, 0x000E1000, 0x000F0000,
+  51                  0x000F0000, 0x001E0000, 0x002D0000, 0x003C0000, 0x004B0000, 0x005A0000, 0x00690000, 0x00780000,
+  52                  0x00870000, 0x00960000, 0x00A50000, 0x00B40000, 0x00C30000, 0x00D20000, 0x00E10000, 0x00F00000, 
+  53                  0x00F00000, 0x01E00000, 0x02D00000, 0x03C00000, 0x04B00000, 0x05A00000, 0x06900000, 0x07800000, 
+  54                  0x08700000, 0x09600000, 0x0A500000, 0x0B400000, 0x0C300000, 0x0D200000, 0x0E100000, 0x0F000000, 
+  55                  0x0F000000, 0x1E000000, 0x2D000000, 0x3C000000, 0x4B000000, 0x5A000000, 0x69000000, 0x78000000, 
+  56                  0x87000000, 0x96000000, 0xA5000000, 0xB4000000, 0xC3000000, 0xD2000000, 0xE1000000, 0xF0000000 
+  57          };
+  58          static u32 g_curIdx = 0;
+  59          
+  60          static void _colorInitAccSensor(void)
+  61          {
+  62              u8 buffer[8];
+  63              /* add software reset */
+  64                  buffer[0] = XL345_SOFT_RESET;
+  65                  XL345_Write(1, XL345_RESERVED1, buffer);
+  66          
+  67                  delay_ms(50);
+  68          
+  69              /*--------------------------------------------------
+  70              activity - inactivity 
+  71              --------------------------------------------------*/
+  72              /* set up a buffer with all the initialization for activity and inactivity */
+  73              buffer[0] = 20; /* THRESH_ACT */
+  74              buffer[1] = 5; /* THRESH_INACT */
+  75              buffer[2] = 8;/* TIME_INACT (seconds) */
+  76              buffer[3] =     /* ACT_INACT_CTL */
+  77                          XL345_ACT_DC 
+  78                          | XL345_ACT_X_ENABLE | XL345_ACT_Y_ENABLE | XL345_ACT_Z_ENABLE
+  79                          | XL345_INACT_AC | XL345_INACT_X_ENABLE 
+  80                          | XL345_INACT_Y_ENABLE | XL345_INACT_Z_ENABLE;
+  81              XL345_Write(4, XL345_THRESH_ACT, buffer);
+  82          
+  83              /*--------------------------------------------------
+  84              Power, bandwidth-rate, interupt enabling
+  85              --------------------------------------------------*/
+  86          
+  87              /* set up a buffer with all the initization for power*/
+  88              buffer[0] =                   /* BW_RATE */
+  89                          XL345_RATE_100 | XL345_LOW_NOISE;
+  90              buffer[1] =                   /* POWER_CTL */
+  91                          XL345_ACT_INACT_SERIAL | XL345_AUTO_SLEEP |
+  92                          XL345_WAKEUP_8HZ | XL345_MEASURE;
+  93              XL345_Write(2, XL345_BW_RATE, buffer);
+  94          
+  95              // set the FIFO control
+  96              buffer[0] = XL345_FIFO_MODE_FIFO    | // set FIFO mode
+  97                          0 |                          // link to INT1
+  98                          COLOR_FIFO_LENGTH;               // number of samples
+  99              XL345_Write(1, XL345_FIFO_CTL, buffer);
+ 100          
+ 101              // set data format
+ 102              buffer[0] = XL345_SPI4WIRE | XL345_INT_HIGH | XL345_10BIT |
+ 103                          XL345_DATA_JUST_RIGHT | XL345_RANGE_2G;
+ 104              XL345_Write(1, XL345_DATA_FORMAT, buffer);
+ 105          
+ 106              //set interrupt map
+ 107              buffer[0] = 0; //all interrupts set to pin INT1
+ 108              XL345_Write(1, XL345_INT_MAP, buffer);              
+ 109              
+ 110              // turn on the interrupts
+C51 COMPILER V9.01   COLOR_LIGHT                                                           05/07/2018 20:54:21 PAGE 3   
+
+ 111              buffer[0] = XL345_ACTIVITY | XL345_INACTIVITY | 
+ 112                          XL345_WATERMARK;
+ 113              XL345_Write(1, XL345_INT_ENABLE, buffer);
+ 114          
+ 115              return;
+ 116          }
+ 117          
+ 118          static void _colorDeinitAccSensor(void)
+ 119          {
+ 120                  u8 reset = XL345_SOFT_RESET;
+ 121          
+ 122              /* just reset */
+ 123                  XL345_Write(1, XL345_RESERVED1, &reset);
+ 124                  delay_ms(50);
+ 125          
+ 126              return;
+ 127          }
+ 128          
+ 129          static void _colorOnDataReady(void)
+ 130          {
+ 131              s16 x, y, z;
+ 132                  u32 delta;
+ 133          
+ 134              ACC_ReadAcc(COLOR_FIFO_LENGTH, &x, &y, &z);
+ 135          
+ 136                  delta = COLOR_TIMER_DELAY + (y/10);
+ 137                  if (delta < 5 ){
+ 138                          delta = 5;
+ 139                  }
+ 140          
+ 141                  TIM_SetAutoreload(COLOR_TIMER, delta);
+ 142          
+ 143              return;
+ 144          } 
+ 145          
+ 146          void _colorIRQHandler(u8 irq)
+ 147          {
+ 148              /* if data is ready */
+ 149              if (irq & XL345_WATERMARK){
+ 150                  _colorOnDataReady();
+ 151              }
+ 152          
+ 153              /* wake up */
+ 154              if (irq & XL345_ACTIVITY) {    
+ 155                  PWR_Restore();        
+ 156              }
+ 157          
+ 158              /* into low power mode */
+ 159              if (irq & XL345_INACTIVITY){
+ 160                  PWR_LowPower();
+ 161              }
+ 162          
+ 163                  return;
+ 164          }
+ 165          
+ 166          static void _colorTimerInit(void)
+ 167          {
+ 168                  TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+ 169                  NVIC_InitTypeDef         NVIC_InitStructure;
+ 170          
+ 171                  RCC_APB1PeriphClockCmd(COLOR_TIM_RCC, ENABLE);
+ 172          
+C51 COMPILER V9.01   COLOR_LIGHT                                                           05/07/2018 20:54:21 PAGE 4   
+
+ 173                  NVIC_InitStructure.NVIC_IRQChannel = COLOR_TIM_IRQ;
+ 174                  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 3;
+ 175                  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
+ 176                  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+ 177                  NVIC_Init(&NVIC_InitStructure);
+ 178          
+ 179                  TIM_DeInit(COLOR_TIMER);        
+ 180                  TIM_TimeBaseStructure.TIM_Prescaler = 8000;
+ 181                  TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1; 
+ 182                  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Down;
+ 183                  TIM_TimeBaseStructure.TIM_Period = COLOR_TIMER_DELAY;
+ 184                  TIM_TimeBaseInit(COLOR_TIMER, &TIM_TimeBaseStructure);
+ 185                  TIM_ARRPreloadConfig(COLOR_TIMER, ENABLE);//½ûÖ¹ARRÔ¤×°ÔØ»º³åÆ÷
+ 186          
+ 187              TIM_ClearFlag(COLOR_TIMER, TIM_FLAG_Update);  
+ 188              TIM_ITConfig(COLOR_TIMER, TIM_IT_Update, ENABLE); 
+ 189                                             
+ 190                  TIM_SetCounter(COLOR_TIMER, COLOR_TIMER_DELAY);
+ 191                  TIM_Cmd(COLOR_TIMER, ENABLE);
+ 192          
+ 193              return;
+ 194          }
+ 195          
+ 196          static void _colorTimerDeinit(void)
+ 197          {
+ 198                  NVIC_InitTypeDef         NVIC_InitStructure;
+ 199          
+ 200                  NVIC_InitStructure.NVIC_IRQChannel = COLOR_TIM_IRQ;
+ 201                  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 3;
+ 202                  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
+ 203                  NVIC_InitStructure.NVIC_IRQChannelCmd = DISABLE;
+ 204                  NVIC_Init(&NVIC_InitStructure);
+ 205          
+ 206                  TIM_DeInit(COLOR_TIMER);        
+ 207                  TIM_Cmd(COLOR_TIMER, DISABLE);
+ 208                  TIM_ITConfig(COLOR_TIMER, TIM_IT_Update, DISABLE);    
+ 209                  RCC_APB1PeriphClockCmd(COLOR_TIM_RCC, DISABLE);  
+ 210              
+ 211              return;
+ 212          }
+ 213          
+ 214          void COLOR_TIM_ROUTINE(void)
+ 215          {
+ 216              if(TIM_GetITStatus(COLOR_TIMER, TIM_IT_Update) != RESET){
+ 217                 TIM_ClearITPendingBit(COLOR_TIMER , TIM_FLAG_Update);
+ 218          
+ 219                          g_curIdx++;
+ 220                          if (g_curIdx >= (sizeof(g_pattern)>>2)){
+ 221                                  g_curIdx = 0;
+ 222                          }
+ 223          
+ 224                          LED_SetColor(g_pattern[g_curIdx]);
+ 225              }
+ 226          
+ 227                  return;
+ 228          }
+ 229          
+ 230          static void _COLOR_Start(void)
+ 231          {
+ 232              /* register irq handler to acc module */
+ 233              ACC_SetIRQHandler(_colorIRQHandler);
+ 234          
+C51 COMPILER V9.01   COLOR_LIGHT                                                           05/07/2018 20:54:21 PAGE 5   
+
+ 235                  _colorTimerInit();
+ 236          
+ 237                  _colorInitAccSensor();
+ 238          
+ 239          
+ 240                  return;
+ 241          }
+ 242          
+ 243          static void _COLOR_Stop(void)
+ 244          {
+ 245                  _colorDeinitAccSensor();
+ 246          
+ 247                  _colorTimerDeinit();
+ 248          
+ 249                  LED_SetColor(0x00);
+ 250          
+ 251                  return;
+ 252          }
+ 253          
+ 254          
+
+C51 COMPILATION COMPLETE.  2 WARNING(S),  1 ERROR(S)

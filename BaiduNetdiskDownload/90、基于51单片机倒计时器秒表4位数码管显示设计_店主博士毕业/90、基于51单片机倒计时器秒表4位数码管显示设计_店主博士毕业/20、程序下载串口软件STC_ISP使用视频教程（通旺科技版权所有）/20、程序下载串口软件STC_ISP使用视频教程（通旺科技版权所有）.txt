@@ -1,0 +1,4 @@
+20、程序下载串口软件STC_ISP使用视频教程（通旺科技版权所有）
+三-1、51单片机串口使用及下载上：http://v.youku.com/v_show/id_XMjkxNTU2MzE1Mg==.html
+三-2、51单片机串口使用及下载下：http://v.youku.com/v_show/id_XMjkxNTc2NDQ2OA==.html
+（复制链接到浏览器打开即可观看）

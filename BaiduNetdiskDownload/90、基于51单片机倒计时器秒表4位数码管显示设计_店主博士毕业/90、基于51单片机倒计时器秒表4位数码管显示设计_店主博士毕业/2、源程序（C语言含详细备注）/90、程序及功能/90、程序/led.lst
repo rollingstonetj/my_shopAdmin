@@ -1,0 +1,169 @@
+C51 COMPILER V9.01   LED                                                                   05/07/2018 20:54:22 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE LED
+OBJECT MODULE PLACED IN .\led.obj
+COMPILER INVOKED BY: E:\BaiduNetdiskDownload\keil\C51\BIN\C51.EXE C:\Users\94963\Desktop\ProgrammableLED-master\software
+                    -\src\led.c BROWSE DEBUG OBJECTEXTEND PRINT(.\led.lst) OBJECT(.\led.obj)
+
+line level    source
+
+   1          #include "stm32f10x.h"
+*** WARNING C318 IN LINE 1 OF C:\Users\94963\Desktop\ProgrammableLED-master\software\src\led.c: can't open file 'stm32f1
+             -0x.h'
+   2          #include "led.h"
+*** ERROR C141 IN LINE 35 OF C:\USERS\94963\DESKTOP\PROGRAMMABLELED-MASTER\SOFTWARE\SRC\LED.H: syntax error near 'color'
+             -, expected ')'
+   3          #include "utils.h"
+*** ERROR C129 IN LINE 18 OF C:\USERS\94963\DESKTOP\PROGRAMMABLELED-MASTER\SOFTWARE\SRC\UTILS.H: missing ';' before 'g_j
+             -iffies'
+   4          
+   5          /* jiffies mask */
+   6          #define LED_JIFFIES_MASK      LED1_RED_MASK
+   7          
+   8          /* led pin config */
+   9          #define LED_PORT  GPIOB
+  10          #define LED_RCC   RCC_APB2Periph_GPIOB
+  11          
+  12          #define LED_1_RED    GPIO_Pin_13
+  13          #define LED_1_GREEN  GPIO_Pin_12
+  14          #define LED_1_BLUE       GPIO_Pin_14
+  15          #define LED_2_RED    GPIO_Pin_6
+  16          #define LED_2_GREEN      GPIO_Pin_7 
+  17          #define LED_2_BLUE       GPIO_Pin_4
+  18          #define LED_3_PIN    GPIO_Pin_8
+  19          #define LED_4_PIN    GPIO_Pin_15
+  20          
+  21          #define LED_ALL_PIN  (LED_1_RED|LED_1_GREEN|LED_1_BLUE|\
+  22                                LED_2_RED|LED_2_GREEN|LED_2_BLUE|\
+  23                                LED_3_PIN|LED_4_PIN)
+  24          
+  25          #define LED_LIGHTUP(port, pin)   (port->BRR = pin)
+  26          #define LED_LIGHTSHUT(port, pin) (port->BSRR = pin)
+  27          
+  28          /* led power control pin */
+  29          #define LED_POWER_PORT_RCC RCC_APB2Periph_GPIOA
+  30          #define LED_POWER_PORT     GPIOA
+  31          #define LED_POWER_PIN      GPIO_Pin_3
+  32          
+  33          /* store led color */
+  34          static u8 g_LED1_R;
+  35          static u8 g_LED1_G;
+  36          static u8 g_LED1_B;
+  37          static u8 g_LED2_R;
+  38          static u8 g_LED2_G;
+  39          static u8 g_LED2_B;
+  40          static u8 g_LED3;
+  41          static u8 g_LED4;
+  42          
+  43          void LED_Init(void)
+  44          {
+  45                  GPIO_InitTypeDef GPIO_InitStructure; 
+  46          
+  47                  RCC_APB2PeriphClockCmd(LED_RCC | LED_POWER_PORT_RCC, ENABLE);
+  48          
+C51 COMPILER V9.01   LED                                                                   05/07/2018 20:54:22 PAGE 2   
+
+  49              /* disable JTAG, leave only SWD, we use PB4 as LED2 Blue */
+  50              GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
+  51          
+  52                  /* init led control pin */
+  53                  GPIO_InitStructure.GPIO_Pin = LED_ALL_PIN;
+  54                  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+  55                  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  56                  GPIO_Init(LED_PORT, &GPIO_InitStructure);
+  57              LED_LIGHTSHUT(LED_PORT, LED_ALL_PIN);
+  58          
+  59                  /* init boost circuit control pin */
+  60                  GPIO_InitStructure.GPIO_Pin = LED_POWER_PIN;
+  61                  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+  62                  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  63                  GPIO_Init(LED_POWER_PORT, &GPIO_InitStructure);
+  64              GPIO_SetBits(LED_POWER_PORT, LED_POWER_PIN);
+  65          
+  66                  return;
+  67          }
+  68          
+  69          void LED_IRQHandler(void)
+  70          {
+  71              register u16 counter = (u16)(g_jiffies & LED_JIFFIES_MASK);
+  72              register u16 outreg;
+  73          
+  74              outreg = 0;
+  75          
+  76              /* light up the color */
+  77              if (g_LED1_R > counter){
+  78                  outreg |= LED_1_RED;
+  79              } 
+  80          
+  81              if (g_LED1_G > counter){
+  82                  outreg |= LED_1_GREEN;
+  83              }
+  84          
+  85              if (g_LED1_B > counter){
+  86                  outreg |= LED_1_BLUE;
+  87              } 
+  88          
+  89              /* light up the color */
+  90              if (g_LED2_R > counter){
+  91                  outreg |= LED_2_RED;
+  92              } 
+  93          
+  94              if (g_LED2_G > counter){
+  95                  outreg |= LED_2_GREEN;
+  96              }
+  97          
+  98              if (g_LED2_B > counter){
+  99                  outreg |= LED_2_BLUE;
+ 100              }
+ 101          
+ 102                  if (g_LED3 > counter){
+ 103                  outreg |= LED_3_PIN;
+ 104                  }
+ 105          
+ 106                  if (g_LED4 > counter){
+ 107                  outreg |= LED_4_PIN;
+ 108                  }
+ 109          
+ 110                  LED_LIGHTSHUT(LED_PORT, LED_ALL_PIN);
+C51 COMPILER V9.01   LED                                                                   05/07/2018 20:54:22 PAGE 3   
+
+ 111              LED_LIGHTUP(LED_PORT, outreg);
+ 112          
+ 113              return;
+ 114          }
+ 115          
+ 116          void LED_SetColor(u32 color)
+ 117          {
+ 118                  g_LED1_R = LED1_GET_RED(color); 
+ 119                  g_LED1_G = LED1_GET_GREEN(color); 
+ 120                  g_LED1_B = LED1_GET_BLUE(color); 
+ 121                  g_LED2_R = LED2_GET_RED(color); 
+ 122                  g_LED2_G = LED2_GET_GREEN(color); 
+ 123                  g_LED2_B = LED2_GET_BLUE(color);
+ 124                  g_LED3   = LED3_GET_COLOR(color); 
+ 125                  g_LED4   = LED4_GET_COLOR(color); 
+ 126          
+ 127                  return;
+ 128          }
+ 129          
+ 130          void LED_PowerOn(void)
+ 131          {
+ 132              GPIO_SetBits(LED_POWER_PORT, LED_POWER_PIN);
+ 133          
+ 134                  return;
+ 135          }
+ 136          
+ 137          void LED_PowerOff(void)
+ 138          {
+ 139              //close all led
+ 140              GPIO_SetBits(LED_PORT, LED_ALL_PIN);
+ 141          
+ 142              //disable boost circuit
+ 143              GPIO_ResetBits(LED_POWER_PORT, LED_POWER_PIN);
+ 144          
+ 145                  return;
+ 146          }
+ 147          
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  2 ERROR(S)

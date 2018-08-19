@@ -1,0 +1,186 @@
+C51 COMPILER V9.01   GRADIENTER                                                            05/07/2018 20:54:22 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE GRADIENTER
+OBJECT MODULE PLACED IN .\gradienter.obj
+COMPILER INVOKED BY: E:\BaiduNetdiskDownload\keil\C51\BIN\C51.EXE C:\Users\94963\Desktop\ProgrammableLED-master\software
+                    -\src\gradienter.c BROWSE DEBUG OBJECTEXTEND PRINT(.\gradienter.lst) OBJECT(.\gradienter.obj)
+
+line level    source
+
+   1          #include <stdlib.h>
+   2          #include "stm32f10x.h"
+*** WARNING C318 IN LINE 2 OF C:\Users\94963\Desktop\ProgrammableLED-master\software\src\gradienter.c: can't open file '
+             -stm32f10x.h'
+   3          #include "utils.h"
+*** WARNING C317 IN LINE 11 OF C:\USERS\94963\DESKTOP\PROGRAMMABLELED-MASTER\SOFTWARE\SRC\UTILS.H: attempt to redefine m
+             -acro 'NULL'
+*** ERROR C129 IN LINE 18 OF C:\USERS\94963\DESKTOP\PROGRAMMABLELED-MASTER\SOFTWARE\SRC\UTILS.H: missing ';' before 'g_j
+             -iffies'
+   4          #include "gradienter.h"
+   5          #include "led.h"
+   6          #include "acc_sensor.h"
+   7          #include "app_intf.h"
+   8          #include "xl345.h"
+   9          #include "power.h"
+  10          
+  11          #define GRAD_FIFO_LENGTH    8
+  12          
+  13          static void _GRAD_Start(void);
+  14          static void _GRAD_Stop(void);
+  15          struct APP_INTF g_appGradienter =
+  16          {
+  17                  _GRAD_Start,
+  18              _GRAD_Stop
+  19          };
+  20          
+  21          static void _gradInitAccSensor(void)
+  22          {
+  23              u8 buffer[8];
+  24              /* add software reset */
+  25                  buffer[0] = XL345_SOFT_RESET;
+  26                  XL345_Write(1, XL345_RESERVED1, buffer);
+  27          
+  28                  delay_ms(50);
+  29          
+  30              /*--------------------------------------------------
+  31              activity - inactivity 
+  32              --------------------------------------------------*/
+  33              /* set up a buffer with all the initialization for activity and inactivity */
+  34              buffer[0] = 20; /* THRESH_ACT */
+  35              buffer[1] = 5; /* THRESH_INACT */
+  36              buffer[2] = 10;/* TIME_INACT (seconds) */
+  37              buffer[3] =     /* ACT_INACT_CTL */
+  38                          XL345_ACT_DC 
+  39                          | XL345_ACT_X_ENABLE | XL345_ACT_Y_ENABLE | XL345_ACT_Z_ENABLE
+  40                          | XL345_INACT_AC | XL345_INACT_X_ENABLE 
+  41                          | XL345_INACT_Y_ENABLE | XL345_INACT_Z_ENABLE;
+  42              XL345_Write(4, XL345_THRESH_ACT, buffer);
+  43          
+  44              /*--------------------------------------------------
+  45              Power, bandwidth-rate, interupt enabling
+  46              --------------------------------------------------*/
+  47          
+  48              /* set up a buffer with all the initization for power*/
+C51 COMPILER V9.01   GRADIENTER                                                            05/07/2018 20:54:22 PAGE 2   
+
+  49              buffer[0] =                   /* BW_RATE */
+  50                          XL345_RATE_100 | XL345_LOW_NOISE;
+  51              buffer[1] =                   /* POWER_CTL */
+  52                          XL345_ACT_INACT_SERIAL | XL345_AUTO_SLEEP |
+  53                          XL345_WAKEUP_8HZ | XL345_MEASURE;
+  54              XL345_Write(2, XL345_BW_RATE, buffer);
+  55          
+  56              // set the FIFO control
+  57              buffer[0] = XL345_FIFO_MODE_FIFO    | // set FIFO mode
+  58                          0 |                          // link to INT1
+  59                          GRAD_FIFO_LENGTH;                // number of samples
+  60              XL345_Write(1, XL345_FIFO_CTL, buffer);
+  61          
+  62              // set data format
+  63              buffer[0] = XL345_SPI4WIRE | XL345_INT_HIGH | XL345_10BIT |
+  64                          XL345_DATA_JUST_RIGHT | XL345_RANGE_2G;
+  65              XL345_Write(1, XL345_DATA_FORMAT, buffer);
+  66          
+  67              //set interrupt map
+  68              buffer[0] = 0; //all interrupts set to pin INT1
+  69              XL345_Write(1, XL345_INT_MAP, buffer);              
+  70              
+  71              // turn on the interrupts
+  72              buffer[0] = XL345_ACTIVITY | XL345_INACTIVITY | 
+  73                          XL345_WATERMARK;
+  74              XL345_Write(1, XL345_INT_ENABLE, buffer);
+  75          
+  76              return;
+  77          }
+  78          
+  79          static void _gradDeinitAccSensor(void)
+  80          {
+  81                  u8 reset = XL345_SOFT_RESET;
+  82          
+  83              /* just reset */
+  84                  XL345_Write(1, XL345_RESERVED1, &reset);
+  85                  delay_ms(50);
+  86          
+  87              return;
+  88          }
+  89          
+  90          static void _gradOnDataReady(void)
+  91          {
+  92              s16 x, y, z;
+  93                  u16 uX, uY;
+  94                  u32 color = 0;
+  95          
+  96              ACC_ReadAcc(GRAD_FIFO_LENGTH, &x, &y, &z);
+  97          
+  98                  uX = abs(x);
+  99                  uX >>= 5;
+ 100                  if (uX > 0x0F) {
+ 101                          uX = 0x0F;
+ 102                  }
+ 103                  if (x > 0){
+ 104                          LED4_SET_COLOR(color, uX);
+ 105                  } else {
+ 106                      LED3_SET_COLOR(color, uX);
+ 107                  }
+ 108          
+ 109                  uY = abs(y);
+ 110                  uY >>= 5;
+C51 COMPILER V9.01   GRADIENTER                                                            05/07/2018 20:54:22 PAGE 3   
+
+ 111                  if (uY > 0x0FFF) {
+ 112                          uY = 0x0FFF;
+ 113                  }
+ 114          
+ 115                  if (y > 0){
+ 116                      LED2_SET_RED(color, uY);
+ 117                  } else {
+ 118                      LED1_SET_RED(color, uY);
+ 119                  }
+ 120          
+ 121                  LED_SetColor(color);
+ 122          
+ 123              return;
+ 124          }
+ 125          
+ 126          void _gradIRQHandler(u8 irq)
+ 127          {
+ 128              /* if data is ready */
+ 129              if (irq & XL345_WATERMARK){
+ 130                  _gradOnDataReady();
+ 131              }
+ 132          
+ 133              /* wake up */
+ 134              if (irq & XL345_ACTIVITY) {    
+ 135                  PWR_Restore();        
+ 136              }
+ 137          
+ 138              /* into low power mode */
+ 139              if (irq & XL345_INACTIVITY){
+ 140                  PWR_LowPower();
+ 141              }
+ 142          
+ 143                  return;
+ 144          }
+ 145          
+ 146          static void _GRAD_Start(void)
+ 147          {
+ 148              /* register irq handler to acc module */
+ 149              ACC_SetIRQHandler(_gradIRQHandler);
+ 150          
+ 151              _gradInitAccSensor();
+ 152          
+ 153              return;
+ 154          }
+ 155          
+ 156          static void _GRAD_Stop(void)
+ 157          {
+ 158                  _gradDeinitAccSensor();
+ 159          
+ 160              LED_SetColor(0x00);
+ 161          
+ 162              return;
+ 163          }
+ 164          
+
+C51 COMPILATION COMPLETE.  2 WARNING(S),  1 ERROR(S)

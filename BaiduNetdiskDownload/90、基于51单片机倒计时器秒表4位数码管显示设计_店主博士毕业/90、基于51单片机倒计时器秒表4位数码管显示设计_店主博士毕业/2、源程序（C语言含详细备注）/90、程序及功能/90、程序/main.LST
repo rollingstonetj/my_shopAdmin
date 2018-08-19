@@ -1,0 +1,315 @@
+C51 COMPILER V9.01   MAIN                                                                  05/19/2018 07:55:38 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: E:\BaiduNetdiskDownload\keil\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include <reg52.h>               //调用单片机头文件
+   2          #define uchar unsigned char  //无符号字符型 宏定义      变量范围0~255
+   3          #define uint  unsigned int       //无符号整型 宏定义    变量范围0~65535
+   4          #include <intrins.h>
+   5          
+   6          //数码管段选定义      0     1    2    3    4    5       6        7        8        9    
+   7          uchar code smg_du[]={0x28,0xEE,0x32,0xA2,0xE4,0xA1,0x21,0xEA,0x20,0xA0,
+   8                                                  0x60,0x25,0x39,0x26,0x31,0x71,0xff};     //断码
+   9          
+  10          //数码管位选定义
+  11          //sbit P0_0=P0^0;//即定义P0_0为P0口的第1位，以便进行位操作。bit和int char之类的差不多，只不过char=8位, bit
+             -=1位而已。都是变量，编译器在编译过程中分配地址。
+  12          sbit smg_we1 = P3^4;        //数码管位选定义
+  13          sbit smg_we2 = P3^5;
+  14          sbit smg_we3 = P3^6;
+  15          sbit smg_we4 = P3^7;
+  16          
+  17          uchar dis_smg[8] =  {0x90,0xf5,0x1c,0x34,0x71,0x32,0x12,0xf4};  
+  18          bit flag_500ms;
+  19          sbit beep = P2^3;
+  20          uchar a_a;
+  21          uchar menu_1;           //设置参数用
+  22          
+  23          uchar fen,miao,weimiao;                 // 倒计时数
+  24          uchar num_value;    // 用做中间的变量
+  25          bit flag_num_en;   // 倒计时器开始计时使能标志位
+  26          uchar set_fen = 30; // 设置倒计时数的启始值 
+  27          uchar set_miao = 0; // 设置倒计时数的启始值 
+  28          
+  29          /***********************1ms延时函数*****************************/
+  30          void delay_1ms(uint q)
+  31          {
+  32   1              uint i,j;
+  33   1              for(i=0;i<q;i++)
+  34   1                      for(j=0;j<120;j++);
+  35   1      }
+  36          
+  37          
+  38          /***********************数码位选函数*****************************/
+  39          void smg_we_switch(uchar i)
+  40          {
+  41   1              switch(i)
+  42   1              {
+  43   2                      case 0: smg_we1 = 0;  smg_we2 = 1; smg_we3 = 1;  smg_we4 = 1; break;
+  44   2                      case 1: smg_we1 = 1;  smg_we2 = 0; smg_we3 = 1;  smg_we4 = 1; break;
+  45   2                      case 2: smg_we1 = 1;  smg_we2 = 1; smg_we3 = 0;  smg_we4 = 1; break;
+  46   2                      case 3: smg_we1 = 1;  smg_we2 = 1; smg_we3 = 1;  smg_we4 = 0; break;
+  47   2              }       
+  48   1      }
+  49          
+  50          
+  51          /*************定时器0初始化程序***************/
+  52          void time_init()          
+  53          {
+  54   1              EA   = 1;                 //开总中断
+C51 COMPILER V9.01   MAIN                                                                  05/19/2018 07:55:38 PAGE 2   
+
+  55   1              TMOD = 0X01;      //定时器0、工作方式1
+  56   1              ET0  = 1;                 //开定时器0中断 
+  57   1              TR0  = 1;                 //允许定时器0定时
+  58   1      }
+  59          
+  60          /***********************数码显示函数*****************************/
+  61          
+  62          void display()
+  63          {
+  64   1              uchar i;
+  65   1              for(i=0;i<4;i++)
+  66   1              {                                                 
+  67   2                      P1 = 0xff;                       //消隐 
+  68   2                      smg_we_switch(i);        //位选
+  69   2                      P1 = dis_smg[i];         //段选      
+  70   2                      delay_1ms(1);                    
+  71   2              }       
+  72   1      }
+  73          
+  74          /********************独立按键程序*****************/
+  75          uchar key_can;   //按键值
+  76          
+  77          void key()       //独立按键程序
+  78          {
+  79   1              static uchar key_new;
+  80   1              key_can = 20;                   //按键值还原
+  81   1              if((P2 & 0x07) != 0x07)         //按键按下
+  82   1              {
+  83   2                      delay_1ms(1);           //按键消抖动
+  84   2                      if(((P2 & 0x07) != 0x07) && (key_new == 1))
+  85   2                      {                                               //确认是按键按下
+  86   3                              key_new = 0;
+  87   3                              switch(P2 & 0x07)
+  88   3                              {
+  89   4                                      case 0x06: key_can = 1; break;     //得到k2键值
+  90   4                                      case 0x05: key_can = 2; break;     //得到k3键值
+  91   4                                      case 0x03: key_can = 3; break;     //得到k4键值
+  92   4                              }
+  93   3                      }                       
+  94   2              }
+  95   1              else 
+  96   1                      key_new = 1;    
+  97   1      }
+  98          
+  99          /****************按键处理数码管显示函数***************/
+ 100          void key_with()
+ 101          {
+ 102   1              if(key_can == 1)
+ 103   1              {
+ 104   2                      menu_1 ++;
+ 105   2                      if(menu_1 >= 3)
+ 106   2                      {
+ 107   3                              menu_1 = 0;
+ 108   3                              fen = set_fen;
+ 109   3                              miao = set_miao;
+ 110   3                      }
+ 111   2              }
+ 112   1              if(menu_1 == 0)                         //倒计时器按键操作开始 暂停
+ 113   1              {               
+ 114   2                      if(key_can == 2)                //开始键
+ 115   2                      {
+ 116   3                              flag_num_en = 1;
+C51 COMPILER V9.01   MAIN                                                                  05/19/2018 07:55:38 PAGE 3   
+
+ 117   3                              beep = 0;         //打开蜂鸣器
+ 118   3                              delay_1ms(30);
+ 119   3                              beep = 1;         //关闭蜂鸣器
+ 120   3                      }       
+ 121   2                      if(key_can == 3)                //暂停键
+ 122   2                      {
+ 123   3                              flag_num_en = 0;
+ 124   3                              beep = 0;         //打开蜂鸣器
+ 125   3                              delay_1ms(30);
+ 126   3                              beep = 1;         //关闭蜂鸣器
+ 127   3                      }
+ 128   2              }
+ 129   1              if(menu_1 == 1)                         //设置倒计时器开始数
+ 130   1              {
+ 131   2                      if(key_can == 2)
+ 132   2                      {
+ 133   3                              set_miao ++ ;           // 设置数加
+ 134   3                              if(set_miao > 60)
+ 135   3                                      set_miao = 0;   //最大加到99    
+ 136   3                              dis_smg[0] = smg_du[set_miao % 10];           //取个数显示
+ 137   3                              dis_smg[1] = smg_du[set_miao / 10 % 10] ;  //取十位显示
+ 138   3                      }
+ 139   2                      if(key_can == 3)
+ 140   2                      {
+ 141   3                              if(set_miao == 0)
+ 142   3                                      set_miao = 60;  
+ 143   3                                      set_miao -- ;           // 设置数减
+ 144   3                              dis_smg[0] = smg_du[set_miao % 10];           //取个数显示
+ 145   3                              dis_smg[1] = smg_du[set_miao / 10 % 10] ;  //取十位显示
+ 146   3                      }
+ 147   2              }       
+ 148   1      
+ 149   1              if(menu_1 == 2)                         //设置倒计时器开始数
+ 150   1              {
+ 151   2                      if(key_can == 2)
+ 152   2                      {
+ 153   3                              set_fen ++ ;            // 设置数加
+ 154   3                              if(set_fen > 99)
+ 155   3                                      set_fen = 0;    //最大加到99    
+ 156   3                              dis_smg[2] = smg_du[set_fen % 10];            //取个数显示
+ 157   3                              dis_smg[3] = smg_du[set_fen / 10 % 10] ;  //取十位显示
+ 158   3                      }
+ 159   2                      if(key_can == 3)
+ 160   2                      {
+ 161   3                              if(set_fen == 0)
+ 162   3                                      set_fen = 99;
+ 163   3                                      set_fen -- ;            // 设置数减
+ 164   3                              dis_smg[2] = smg_du[set_fen % 10];            //取个数显示
+ 165   3                              dis_smg[3] = smg_du[set_fen / 10 % 10] ;  //取十位显示
+ 166   3                      }
+ 167   2              }       
+ 168   1      }  
+ 169          
+ 170          
+ 171          /******************主程序**********************/           
+ 172          void main()
+ 173          {
+ 174   1              beep = 0;                                   //开机蜂鸣器叫一声
+ 175   1              delay_1ms(100);
+ 176   1              P0 = P1 = P2 = P3 = 0xff;   //初始化IO口
+ 177   1              time_init();
+ 178   1              miao = set_miao;           //开机显示设置数
+C51 COMPILER V9.01   MAIN                                                                  05/19/2018 07:55:38 PAGE 4   
+
+ 179   1              fen  = set_fen;    //开机显示设置数
+ 180   1              while(1)
+ 181   1              {
+ 182   2                      key();                     //按键扫描函数
+ 183   2                      if(key_can < 10)
+ 184   2                      {
+ 185   3                              key_with();    //按键执行函数
+ 186   3                      }       
+ 187   2                              
+ 188   2                      if(menu_1 == 0)  //扫描显示倒计时数
+ 189   2                      {        
+ 190   3                              dis_smg[0] = smg_du[miao % 10];
+ 191   3                              dis_smg[1] = smg_du[miao / 10 % 10];
+ 192   3                              dis_smg[2] = smg_du[fen % 10] & 0xdf;
+ 193   3                              dis_smg[3] = smg_du[fen / 10 % 10];
+ 194   3                              if(flag_500ms == 1)
+ 195   3                              {
+ 196   4                                      flag_500ms = 0;
+ 197   4                                      if((miao <= 5) && (fen == 0))
+ 198   4                                              beep = ~beep;
+ 199   4                              }
+ 200   3      
+ 201   3                              if((fen == 0) && (miao == 0))
+ 202   3                              {
+ 203   4                                      beep = 1;        //关闭蜂鸣器
+ 204   4                                      miao = set_miao;         //让显示最大数
+ 205   4                                      fen  = set_fen;      //让显示最大数
+ 206   4                                      flag_num_en = 0;
+ 207   4                                      weimiao = 1;
+ 208   4                              }
+ 209   3      
+ 210   3                      }
+ 211   2      
+ 212   2                      if(menu_1 == 1)                  //在设置的时候十位数闪烁
+ 213   2                      {
+ 214   3                              if(flag_500ms == 1)
+ 215   3                              {
+ 216   4                                      dis_smg[0] = smg_du[set_miao % 10];           //取个位显示
+ 217   4                                      dis_smg[1] = smg_du[set_miao / 10 % 10];   //取十位显示
+ 218   4                                      dis_smg[2] = smg_du[set_fen % 10] & 0xdf;             //取个数显示
+ 219   4                                      dis_smg[3] = smg_du[set_fen / 10 % 10] ;  //取十位显示
+ 220   4                              }
+ 221   3                              else 
+ 222   3                              {
+ 223   4                                      dis_smg[0] = 0xff;            //取个位显示
+ 224   4                                      dis_smg[1] = 0xff;   //取十位显示
+ 225   4                                      dis_smg[2] = smg_du[set_fen % 10] & 0xdf;             //取个数显示
+ 226   4                                      dis_smg[3] = smg_du[set_fen / 10 % 10] ;  //取十位显示
+ 227   4                              }
+ 228   3                      }
+ 229   2      
+ 230   2                      if(menu_1 == 2)                  //在设置的时候十位数闪烁
+ 231   2                      {
+ 232   3                              if(flag_500ms == 1)
+ 233   3                              {
+ 234   4                                      dis_smg[0] = smg_du[set_miao % 10];           //取个位显示
+ 235   4                                      dis_smg[1] = smg_du[set_miao / 10 % 10];   //取十位显示
+ 236   4                                      dis_smg[2] = smg_du[set_fen % 10] & 0xdf;             //取个数显示
+ 237   4                                      dis_smg[3] = smg_du[set_fen / 10 % 10] ;  //取十位显示
+ 238   4                              }
+ 239   3                              else 
+ 240   3                              {
+C51 COMPILER V9.01   MAIN                                                                  05/19/2018 07:55:38 PAGE 5   
+
+ 241   4                                      dis_smg[0] = smg_du[set_miao % 10];           //取个位显示
+ 242   4                                      dis_smg[1] = smg_du[set_miao / 10 % 10];   //取十位显示
+ 243   4                                      dis_smg[2] = 0xff;            //取个数显示
+ 244   4                                      dis_smg[3] = 0xff ;  //取十位显示
+ 245   4                              }
+ 246   3                      }
+ 247   2      
+ 248   2                      display();                //数码管显示函数
+ 249   2      
+ 250   2      
+ 251   2              }
+ 252   1      }
+ 253          
+ 254          /*************定时器0中断服务程序***************/
+ 255          void time0_int() interrupt 1
+ 256          {       
+ 257   1              static uint value;
+ 258   1              TH0 = 0xd8;
+ 259   1              TL0 = 0xf0;     // 10ms
+ 260   1              value ++;
+ 261   1              if(value >= 50)
+ 262   1              {
+ 263   2                      value = 0;
+ 264   2                      flag_500ms = ~flag_500ms;
+ 265   2              }
+ 266   1              if(flag_num_en == 1)
+ 267   1              {
+ 268   2                      num_value = 0;  
+ 269   2                      if(weimiao == 0)
+ 270   2                      {
+ 271   3                              weimiao = 100;
+ 272   3                              if(miao == 0)
+ 273   3                              {               
+ 274   4                                      miao = 60;              
+ 275   4                                      if(fen != 0)
+ 276   4                                              fen --;
+ 277   4                              }
+ 278   3                              miao --;                                   //倒计数减一次
+ 279   3                      }
+ 280   2                      weimiao --;
+ 281   2      
+ 282   2              }
+ 283   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    826    ----
+   CONSTANT SIZE    =     17    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     20    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -9,7 +9,7 @@
     <!-- 添加分类按钮 -->
     <el-button type="success" plain class="mt_10 mb_10" @click="showAddDialog">添加分类</el-button>
     <!-- 添加表格插件 -->
-    <!-- 设置加载动画效果 -->
+    <!-- 设置加载动画效果 v-loading="loading"-->
     <el-table
       :data="catList"
       v-loading="loading"
@@ -189,7 +189,7 @@ export default {
           const {cat_name: catName, cat_pid: catPid} = this.addForm
           // console.log(catName, catPid)
           const res = await this.axios.post('categories', {
-            // 注意，如果不给0，一级分类添加不上
+            // 注意，如果不给0，一级分类添加不上,因为要传值发送ajax要传值
             cat_pid: catPid[catPid.length - 1] || 0,
             cat_name: catName,
             cat_level: catPid.length

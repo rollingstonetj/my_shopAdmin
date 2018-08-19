@@ -1,11 +1,28 @@
+import ElementUI from 'element-ui'
+import 'element-ui/lib/theme-chalk/index.css'
+
+// 富文本编辑器的样式
+import 'quill/dist/quill.core.css'
+import 'quill/dist/quill.snow.css'
+import 'quill/dist/quill.bubble.css'
+
 import Vue from 'vue'
 import App from './App'
 import router from './router'
-import ElementUI from 'element-ui'
-import 'element-ui/lib/theme-chalk/index.css'
+
+
 import axios from 'axios'
+import moment from 'moment'
+// 导入富文本编辑器
+import VueQuillEditor from 'vue-quill-editor'
+Vue.use(VueQuillEditor)
 Vue.config.productionTip = false
 Vue.use(ElementUI)
+
+// 定义过滤器
+Vue.filter('dateFilter', (input, format = 'YYYY-MM-DD HH:mm:ss') => {
+  return moment(input).format(format)
+})
 
 /* eslint-disable no-new */
 Vue.prototype.axios = axios

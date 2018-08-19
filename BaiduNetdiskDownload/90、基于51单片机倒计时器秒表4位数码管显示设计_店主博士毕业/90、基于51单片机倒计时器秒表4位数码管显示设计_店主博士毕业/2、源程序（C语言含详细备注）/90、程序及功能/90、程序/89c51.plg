@@ -1,0 +1,23 @@
+<html>
+<body>
+<pre>
+<h1>礦ision Build Log</h1>
+<h2>Project:</h2>
+E:\BaiduNetdiskDownload\90、基于51单片机倒计时器秒表4位数码管显示设计_店主博士毕业\90、基于51单片机倒计时器秒表4位数码管显示设计_店主博士毕业\2、源程序（C语言含详细备注）\90、程序及功能\90、程序\89c51.uvproj
+Project File Date:  05/07/2018
+
+<h2>Output:</h2>
+compiling main.c...
+main.c - 0 Error(s), 0 Warning(s).
+Build target 'Target 1'
+linking...
+Program Size: data=29.2 xdata=0 code=1006
+creating hex file from "89c51"...
+"89c51" - 0 Error(s), 0 Warning(s).
+Build target 'Target 1'
+assembling STARTUP.A51...
+compiling main.c...
+linking...
+Program Size: data=29.2 xdata=0 code=1006
+creating hex file from "89c51"...
+"89c51" - 0 Error(s), 0 Warning(s).

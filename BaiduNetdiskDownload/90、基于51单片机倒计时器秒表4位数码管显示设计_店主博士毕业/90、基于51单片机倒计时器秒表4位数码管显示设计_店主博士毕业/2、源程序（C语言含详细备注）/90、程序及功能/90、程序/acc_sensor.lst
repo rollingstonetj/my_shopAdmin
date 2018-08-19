@@ -1,0 +1,128 @@
+C51 COMPILER V9.01   ACC_SENSOR                                                            05/07/2018 20:54:21 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE ACC_SENSOR
+OBJECT MODULE PLACED IN .\acc_sensor.obj
+COMPILER INVOKED BY: E:\BaiduNetdiskDownload\keil\C51\BIN\C51.EXE C:\Users\94963\Desktop\ProgrammableLED-master\software
+                    -\src\acc_sensor.c BROWSE DEBUG OBJECTEXTEND PRINT(.\acc_sensor.lst) OBJECT(.\acc_sensor.obj)
+
+line level    source
+
+   1          #include "stm32f10x.h"
+*** WARNING C318 IN LINE 1 OF C:\Users\94963\Desktop\ProgrammableLED-master\software\src\acc_sensor.c: can't open file '
+             -stm32f10x.h'
+   2          #include "utils.h"
+*** ERROR C129 IN LINE 18 OF C:\USERS\94963\DESKTOP\PROGRAMMABLELED-MASTER\SOFTWARE\SRC\UTILS.H: missing ';' before 'g_j
+             -iffies'
+   3          #include "acc_sensor.h"
+   4          #include "xl345.h"
+   5          
+   6          /* accelerate sensor interrupt pin */
+   7          #define ACC_INT_PIN         GPIO_Pin_0
+   8          #define ACC_INT_PORT        GPIOA
+   9          #define ACC_INT_RCC         RCC_APB2Periph_GPIOA
+  10          #define ACC_INT_PORTSOURCE  GPIO_PortSourceGPIOA
+  11          #define ACC_INT_PINSOURCE   GPIO_PinSource0
+  12          #define ACC_INT_IRQ         EXTI0_IRQn
+  13          #define ACC_INT_IRQROUTINE  EXTI0_IRQHandler
+  14          #define ACC_INT_EXTILINE    EXTI_Line0
+  15          
+  16          static ACC_IRQHandler g_handler = NULL;
+  17          
+  18          static void _initInterrupt(void)
+  19          {
+  20                  GPIO_InitTypeDef GPIO_InitStructure;
+  21                  EXTI_InitTypeDef EXTI_InitStructure;
+  22                  NVIC_InitTypeDef NVIC_InitStructure;
+  23          
+  24                  RCC_APB2PeriphClockCmd(ACC_INT_RCC, ENABLE);
+  25          
+  26                  GPIO_InitStructure.GPIO_Pin = ACC_INT_PIN;
+  27                  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  28                  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
+  29                  GPIO_Init(ACC_INT_PORT, &GPIO_InitStructure);   
+  30                  GPIO_EXTILineConfig(ACC_INT_PORTSOURCE, ACC_INT_PINSOURCE); 
+  31          
+  32              NVIC_InitStructure.NVIC_IRQChannel = ACC_INT_IRQ;
+  33                  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+  34              NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+  35              NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  36              NVIC_Init(&NVIC_InitStructure);
+  37          
+  38                  EXTI_InitStructure.EXTI_Line = ACC_INT_EXTILINE;
+  39                  EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+  40                  EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising; 
+  41                  EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+  42                  EXTI_Init(&EXTI_InitStructure);
+  43          
+  44                  return;
+  45          }
+  46          
+  47          void ACC_Init(void)
+  48          {
+  49              XL345_Init();
+  50                  _initInterrupt();
+C51 COMPILER V9.01   ACC_SENSOR                                                            05/07/2018 20:54:21 PAGE 2   
+
+  51          
+  52              return;
+  53          }
+  54          
+  55          /* read accelerate from sensor queue */
+  56          void ACC_ReadAcc(u8 fifoLen, s16 *X, s16 *Y, s16*Z)
+  57          {
+  58                  u8 buf[6];
+  59              u16 x, y, z;
+  60              s32 avX, avY, avZ;
+  61              u8 i;
+  62          
+  63              avX = 0;
+  64              avY = 0;
+  65              avZ = 0;
+  66              
+  67              for (i = 0; i < fifoLen; ++i){
+  68                  XL345_Read(sizeof(buf), XL345_DATAX0, buf);
+  69                  x = (buf[1] << 8 | buf[0]);
+  70                  y = (buf[3] << 8 | buf[2]);        
+  71                  z = (buf[5] << 8 | buf[4]);             
+  72          
+  73                  avX += (s32)(s16)x;
+  74                  avY += (s32)(s16)y;
+  75                  avZ += (s32)(s16)z;        
+  76              }
+  77          
+  78                  *X = (s16)(avX/fifoLen);
+  79                  *Y = (s16)(avY/fifoLen);
+  80                  *Z = (s16)(avZ/fifoLen);
+  81          
+  82              return;
+  83          }
+  84          
+  85          void ACC_SetIRQHandler(ACC_IRQHandler handler)
+  86          {
+  87                  g_handler = handler;
+  88          
+  89                  return;
+  90          }
+  91          
+  92          void ACC_INT_IRQROUTINE(void)
+  93          {
+  94                  u8 irq;
+  95          
+  96                  if (SET == EXTI_GetITStatus(ACC_INT_EXTILINE)){
+  97                          EXTI_ClearITPendingBit(ACC_INT_EXTILINE);  
+  98          
+  99                      /* read int source */
+ 100                          XL345_Read(1, XL345_INT_SOURCE, &irq);
+ 101          
+ 102                          /* call handler */
+ 103                          if (NULL != g_handler){
+ 104                                  g_handler(irq);
+ 105                          }      
+ 106                  }
+ 107                  
+ 108                  return; 
+ 109          }
+ 110          
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  1 ERROR(S)

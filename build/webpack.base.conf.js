@@ -31,6 +31,17 @@ module.exports = {
       ? config.build.assetsPublicPath
       : config.dev.assetsPublicPath
   },
+  externals: {
+    // vue: 表示的是包名
+    // Vue:表示一个全局变量
+    'vue': 'Vue',
+    'vue-router': 'VueRouter',
+    'moment': 'moment',
+    'element-ui': 'ELEMENT',
+    'axios': 'axios'
+    // import Vue from 'vue'
+    // import Router from 'vue-router'
+  },
   resolve: {
     extensions: ['.js', '.vue', '.json'],
     alias: {

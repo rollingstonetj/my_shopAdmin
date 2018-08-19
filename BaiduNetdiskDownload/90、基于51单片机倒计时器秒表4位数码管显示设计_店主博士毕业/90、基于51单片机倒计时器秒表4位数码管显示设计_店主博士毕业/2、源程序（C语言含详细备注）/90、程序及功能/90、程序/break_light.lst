@@ -1,0 +1,278 @@
+C51 COMPILER V9.01   BREAK_LIGHT                                                           05/07/2018 20:54:21 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE BREAK_LIGHT
+OBJECT MODULE PLACED IN .\break_light.obj
+COMPILER INVOKED BY: E:\BaiduNetdiskDownload\keil\C51\BIN\C51.EXE C:\Users\94963\Desktop\ProgrammableLED-master\software
+                    -\src\break_light.c BROWSE DEBUG OBJECTEXTEND PRINT(.\break_light.lst) OBJECT(.\break_light.obj)
+
+line level    source
+
+   1          #include <stdlib.h>
+   2          #include "stm32f10x.h"
+*** WARNING C318 IN LINE 2 OF C:\Users\94963\Desktop\ProgrammableLED-master\software\src\break_light.c: can't open file 
+             -'stm32f10x.h'
+   3          #include "utils.h"
+*** WARNING C317 IN LINE 11 OF C:\USERS\94963\DESKTOP\PROGRAMMABLELED-MASTER\SOFTWARE\SRC\UTILS.H: attempt to redefine m
+             -acro 'NULL'
+*** ERROR C129 IN LINE 18 OF C:\USERS\94963\DESKTOP\PROGRAMMABLELED-MASTER\SOFTWARE\SRC\UTILS.H: missing ';' before 'g_j
+             -iffies'
+   4          #include "break_light.h"
+   5          #include "xl345.h"
+   6          #include "led.h"
+   7          #include "app_intf.h"
+   8          #include "acc_sensor.h"
+   9          #include "power.h"
+  10          
+  11          enum BKL_Status{
+  12              BKL_STATUS_CONSTANTSPEED,
+  13              BKL_STATUS_DECELERATION,
+  14          };
+  15          
+  16          #define BKL_TIMER          TIM3
+  17          #define BKL_TIM_RCC        RCC_APB1Periph_TIM3
+  18          #define BKL_TIM_IRQ        TIM3_IRQn
+  19          #define BKL_TIM_ROUTINE    TIM3_IRQHandler
+  20          #define BKL_TIMER_DELAY    400
+  21          
+  22          #define BKL_FIFO_LENGTH   12
+  23          
+  24          #define BKL_LED_DECELERATION()  LED_SetColor(0xFF00F00F);
+  25          #define BKL_LED_CONSTANTSPEED() LED_SetColor(0x00011011);
+  26          
+  27          static s32 g_totalZ = 0;
+  28          static s32 g_totalX = 0;
+  29          static s32 g_totalY = 0;
+  30          static s32 g_count = 0;
+  31          
+  32          static void _BKL_Start(void);
+  33          static void _BKL_Stop(void);
+  34          
+  35          struct APP_INTF g_appBreakLight = 
+  36          {
+  37                  _BKL_Start,
+  38                  _BKL_Stop,
+  39          };
+  40          
+  41          static void _bklTimerInit(void)
+  42          {
+  43                  TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+  44                  NVIC_InitTypeDef         NVIC_InitStructure;
+  45          
+  46                  RCC_APB1PeriphClockCmd(BKL_TIM_RCC, ENABLE);
+  47          
+  48                  NVIC_InitStructure.NVIC_IRQChannel = BKL_TIM_IRQ;
+C51 COMPILER V9.01   BREAK_LIGHT                                                           05/07/2018 20:54:21 PAGE 2   
+
+  49                  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 3;
+  50                  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
+  51                  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  52                  NVIC_Init(&NVIC_InitStructure);
+  53          
+  54                  TIM_DeInit(BKL_TIMER);  
+  55                  TIM_TimeBaseStructure.TIM_Prescaler = 8000;
+  56                  TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1; 
+  57                  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Down;
+  58                  TIM_TimeBaseInit(BKL_TIMER, &TIM_TimeBaseStructure);
+  59          
+  60              TIM_ClearFlag(BKL_TIMER, TIM_FLAG_Update);  
+  61              TIM_ITConfig(BKL_TIMER, TIM_IT_Update, ENABLE); 
+  62              
+  63              return;
+  64          }
+  65          
+  66          static void _bklTimerDeinit(void)
+  67          {
+  68                  NVIC_InitTypeDef         NVIC_InitStructure;
+  69          
+  70                  NVIC_InitStructure.NVIC_IRQChannel = BKL_TIM_IRQ;
+  71                  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 3;
+  72                  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
+  73                  NVIC_InitStructure.NVIC_IRQChannelCmd = DISABLE;
+  74                  NVIC_Init(&NVIC_InitStructure);
+  75          
+  76                  TIM_DeInit(BKL_TIMER);  
+  77                  TIM_Cmd(BKL_TIMER, DISABLE);
+  78                  TIM_ITConfig(BKL_TIMER, TIM_IT_Update, DISABLE);    
+  79                  RCC_APB1PeriphClockCmd(BKL_TIM_RCC, DISABLE);  
+  80              
+  81              return;
+  82          }
+  83          
+  84          static inline void _displayDeceleration(void)
+  85          {
+  86              BKL_LED_DECELERATION();
+  87          
+  88                  TIM_SetCounter(BKL_TIMER, BKL_TIMER_DELAY);
+  89                  TIM_Cmd(BKL_TIMER, ENABLE);
+  90          
+  91              return;
+  92          }
+  93          
+  94          void BKL_TIM_ROUTINE(void)
+  95          {
+  96              if(TIM_GetITStatus(BKL_TIMER, TIM_IT_Update) != RESET){
+  97                 TIM_ClearITPendingBit(BKL_TIMER , TIM_FLAG_Update);
+  98          
+  99                  TIM_Cmd(BKL_TIMER, DISABLE);
+ 100                  BKL_LED_CONSTANTSPEED();
+ 101              }
+ 102          
+ 103                  return;
+ 104          }
+ 105          
+ 106          static void _BKLonDataReady(void)
+ 107          {
+ 108              s16 x, y, z;
+ 109                  s16 zDiff, xDiff, yDiff;
+ 110          
+C51 COMPILER V9.01   BREAK_LIGHT                                                           05/07/2018 20:54:21 PAGE 3   
+
+ 111              ACC_ReadAcc(BKL_FIFO_LENGTH, &x, &y, &z);
+ 112          
+ 113                  g_count += 1;
+ 114                  g_totalZ += z; 
+ 115                  zDiff = z - g_totalZ/g_count;
+ 116                  g_totalX += x;
+ 117                  xDiff = abs(x - g_totalX/g_count);
+ 118                  g_totalY += y;
+ 119                  yDiff = abs(y - g_totalY/g_count);
+ 120          
+ 121          //      printf("X:%hd,Y:%hd,Z:%hd\r\n", x, y, z);
+ 122          //      printf("Xd:%hd,Yd:%hd,Zd:%hd\r\n", xDiff, yDiff, zDiff);
+ 123          
+ 124              /* zDiff is positive means we are decelerate */
+ 125              if ((zDiff >= 23 && xDiff < 19 && yDiff < 19) || 
+ 126                           zDiff >= 50 && xDiff < 90 && yDiff < 90 ||
+ 127                           zDiff >= 90){
+ 128                          _displayDeceleration();                 
+ 129              }
+ 130          
+ 131                  if (g_count > 512){
+ 132                          g_count >>= 3;
+ 133                          g_totalZ >>= 3;
+ 134                          g_totalX >>= 3;
+ 135                          g_totalY >>= 3;
+ 136                  }
+ 137          
+ 138              return;
+ 139          }
+ 140          
+ 141          static void _BKLIRQHandler(u8 irq)
+ 142          {
+ 143              /* if data is ready */
+ 144              if (irq & XL345_WATERMARK){
+ 145                  _BKLonDataReady();
+ 146              }
+ 147          
+ 148              /* wake up */
+ 149              if (irq & XL345_ACTIVITY) {    
+ 150                  PWR_Restore();        
+ 151              }
+ 152          
+ 153              /* into low power mode */
+ 154              if (irq & XL345_INACTIVITY){
+ 155                  PWR_LowPower();
+ 156              }
+ 157              
+ 158              return;
+ 159          }
+ 160          
+ 161          static void _BKLInitAccSensor(void)
+ 162          {
+ 163              u8 buffer[8];
+ 164              /* add software reset */
+ 165                  buffer[0] = XL345_SOFT_RESET;
+ 166                  XL345_Write(1, XL345_RESERVED1, buffer);
+ 167          
+ 168                  delay_ms(50);
+ 169          
+ 170              /*--------------------------------------------------
+ 171              activity - inactivity 
+ 172              --------------------------------------------------*/
+C51 COMPILER V9.01   BREAK_LIGHT                                                           05/07/2018 20:54:21 PAGE 4   
+
+ 173              /* set up a buffer with all the initialization for activity and inactivity */
+ 174              buffer[0] = 20; /* THRESH_ACT */
+ 175              buffer[1] = 5; /* THRESH_INACT */
+ 176              buffer[2] = 20;/* TIME_INACT (seconds) */
+ 177              buffer[3] =     /* ACT_INACT_CTL */
+ 178                          XL345_ACT_DC 
+ 179                          | XL345_ACT_X_ENABLE | XL345_ACT_Y_ENABLE | XL345_ACT_Z_ENABLE
+ 180                          | XL345_INACT_AC | XL345_INACT_X_ENABLE 
+ 181                          | XL345_INACT_Y_ENABLE | XL345_INACT_Z_ENABLE;
+ 182              XL345_Write(4, XL345_THRESH_ACT, buffer);
+ 183          
+ 184              /*--------------------------------------------------
+ 185              Power, bandwidth-rate, interupt enabling
+ 186              --------------------------------------------------*/
+ 187          
+ 188              /* set up a buffer with all the initization for power*/
+ 189              buffer[0] =                   /* BW_RATE */
+ 190                          XL345_RATE_100 | XL345_LOW_NOISE;
+ 191              buffer[1] =                   /* POWER_CTL */
+ 192                          XL345_ACT_INACT_SERIAL | XL345_AUTO_SLEEP |
+ 193                          XL345_WAKEUP_8HZ | XL345_MEASURE;
+ 194              XL345_Write(2, XL345_BW_RATE, buffer);
+ 195          
+ 196              // set the FIFO control
+ 197              buffer[0] = XL345_FIFO_MODE_FIFO    | // set FIFO mode
+ 198                          0 |                          // link to INT1
+ 199                          BKL_FIFO_LENGTH;                 // number of samples
+ 200              XL345_Write(1, XL345_FIFO_CTL, buffer);
+ 201          
+ 202              // set data format
+ 203              buffer[0] = XL345_SPI4WIRE | XL345_INT_HIGH | XL345_10BIT |
+ 204                          XL345_DATA_JUST_RIGHT | XL345_RANGE_2G;
+ 205              XL345_Write(1, XL345_DATA_FORMAT, buffer);
+ 206          
+ 207              //set interrupt map
+ 208              buffer[0] = 0; //all interrupts set to pin INT1
+ 209              XL345_Write(1, XL345_INT_MAP, buffer);              
+ 210              
+ 211              // turn on the interrupts
+ 212              buffer[0] = XL345_ACTIVITY | XL345_INACTIVITY | 
+ 213                          XL345_WATERMARK;
+ 214              XL345_Write(1, XL345_INT_ENABLE, buffer);
+ 215          
+ 216              return;
+ 217          }
+ 218          
+ 219          static void _BKLDeinitAccSensor(void)
+ 220          {
+ 221                  u8 reset = XL345_SOFT_RESET;
+ 222          
+ 223              /* just reset */
+ 224                  XL345_Write(1, XL345_RESERVED1, &reset);
+ 225                  delay_ms(50);
+ 226          
+ 227              return;
+ 228          }
+ 229          
+ 230          static void _BKL_Start(void)
+ 231          {
+ 232              _bklTimerInit();
+ 233          
+ 234              /* register irq handler to acc module */
+C51 COMPILER V9.01   BREAK_LIGHT                                                           05/07/2018 20:54:21 PAGE 5   
+
+ 235              ACC_SetIRQHandler(_BKLIRQHandler);
+ 236              
+ 237              _BKLInitAccSensor();
+ 238          
+ 239              return;
+ 240          }
+ 241          
+ 242          static void _BKL_Stop(void)
+ 243          {
+ 244              _BKLDeinitAccSensor();
+ 245              
+ 246              _bklTimerDeinit();
+ 247              
+ 248              LED_SetColor(0x00);
+ 249              
+ 250              return;
+ 251          }
+ 252          
+
+C51 COMPILATION COMPLETE.  2 WARNING(S),  1 ERROR(S)
